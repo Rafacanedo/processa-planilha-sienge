@@ -16,7 +16,7 @@ st.set_page_config(page_title="Processa planilha para o Sienge", page_icon="📊
 st.title("📊 Processa planilha para o Sienge")
 st.markdown("""
 Faça o upload de uma planilha para processar a hierarquia de itens.
-O pipeline normaliza os itens para o Nível 4 (XXX.XXX.XXX.XXX).
+O pipeline identifica tarefas (itens com código e unidade) em qualquer nível e normaliza para o Nível 4.
 """)
 
 # File Uploader first
