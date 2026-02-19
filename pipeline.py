@@ -191,93 +191,100 @@ def transform(items: list[InputItem]) -> list[OutputRow]:
     
     Rules:
     - Task identification: item.is_data (has code + unit).
-    - Level 1: Always header.
-    - Level 2 Task (e.g. 01.03):
-        -> Create L3 header (01.03.001) using L2 desc.
-        -> Create L4 task (01.03.001.001).
-    - Level 3 Task (e.g. 10.03.04):
-        -> Create L3 header (10.03.001) using L2 desc (if not exists).
-        -> Create L4 task (10.03.001.04).
-    - Level 4 Task: Keep as-is.
-    - Level 5+ Task (e.g. 12.04.01.02.01):
-        -> Flatten to Level 4 by merging parts from index 3 onwards.
-        -> 12.04.01.02.01 -> 12.04.01.0201
+    - Sequential numbering: Tasks are renumbered 001, 002... under their L3 container.
+    - Deepening:
+        - L2 Task (Parent L1): -> Syn L2 (Parent Desc) -> Syn L3 (Parent Desc) -> L4 Task
+        - L3 Task (Parent L2): -> Syn L3 (Parent Desc) -> L4 Task
+        - L4 Task: Keep
+        - L5+ Task: Flatten to L4 (merge suffix)
     """
     output: list[OutputRow] = []
 
-    # Map to store descriptions of potential parents
-    # Key: "001", "001.002", etc.
+    # Map to store descriptions of potential parents (Groups)
     desc_map: dict[str, str] = {}
     
-    # Track emitted synthetic headers to avoid duplicates
+    # Track emitted synthetic headers
     emitted_headers: set[str] = set()
+    
+    # Counter for sequential numbering at Level 4
+    # Key = L3 Parent Item (e.g. "001.001.001"), Value = Next Index
+    l3_counters: dict[str, int] = {}
 
+    # Pass 1: Collect descriptions from Groups
+    for item in items:
+        if not item.is_data:
+            desc_map[item.padded_item] = item.description
+
+    # Pass 2: Generate output
     for item in items:
         padded = item.padded_item
         parts = item.parts
         level = item.level
         
-        # Always store description for lookup by children
-        desc_map[padded] = item.description
-
-        if level == 1:
-            # Level 1 is always a group
-            output.append(OutputRow(item=padded, description=item.description))
+        if not item.is_data:
+            # GROUPS: Output as is
+            output.append(OutputRow(
+                item=padded, 
+                description=item.description
+            ))
+            emitted_headers.add(padded)
+        
+        else:
+            # TASKS
+            # Determine L3 Container and Parent Description
+            l3_container = ""
+            parent_desc = ""
             
-        elif level == 2:
-            if not item.is_data:
-                # L2 Group -> Keep
-                output.append(OutputRow(item=padded, description=item.description))
-            else:
-                # L2 Task -> Needs to go to L4
-                # Structure: L2 (Group) -> L3 (Group) -> L4 (Task)
-                # But here L2 is the task itself. We need to create a wrapper structure?
-                # Actually, if L2 is 01.03 and it's a task, it usually means 
-                # "01.03 - My Task". 
-                # Standard practice in this pipeline:
-                # Create synthetic L3 header: 01.03.001 (desc = My Task)
-                # Create L4 task: 01.03.001.001 (desc = My Task)
+            if level == 2:
+                # Parent is L1 (first part)
+                parent_l1 = parts[0]
+                parent_desc = desc_map.get(parent_l1, "")
                 
-                # 1. Create synthetic L3 header
-                l3_header = f"{padded}.001"
-                if l3_header not in emitted_headers:
-                    output.append(OutputRow(item=l3_header, description=item.description))
-                    emitted_headers.add(l3_header)
-                
-                # 2. Create L4 task
-                l4_item = f"{l3_header}.001"
-                output.append(OutputRow(
-                    item=l4_item,
-                    code=item.code,
-                    description=item.description,
-                    unit=normalise_unit(item.unit),
-                    quantity=item.quantity,
-                    price=item.price,
-                ))
+                # Synthetic L2: 001.001
+                syn_l2 = f"{parent_l1}.001"
+                if syn_l2 not in emitted_headers:
+                    output.append(OutputRow(item=syn_l2, description=parent_desc))
+                    emitted_headers.add(syn_l2)
+                    
+                # Synthetic L3: 001.001.001
+                syn_l3 = f"{syn_l2}.001"
+                if syn_l3 not in emitted_headers:
+                    # Note: L3 syn header also takes L1 parent desc in this case
+                    output.append(OutputRow(item=syn_l3, description=parent_desc))
+                    emitted_headers.add(syn_l3)
+                    
+                l3_container = syn_l3
 
-        elif level == 3:
-            if not item.is_data:
-                # L3 Group -> Keep
-                output.append(OutputRow(item=padded, description=item.description))
-            else:
-                # L3 Task (e.g. 10.03.04) -> Needs to go to L4
-                # Parent L2 is 10.03
+            elif level == 3:
+                # Parent is L2 (first 2 parts)
                 parent_l2 = ".".join(parts[:2])
+                parent_desc = desc_map.get(parent_l2, "")
                 
-                # We need a Level 3 header to hold these L4 items.
-                # Convention: Use parent.001 as the general container
-                l3_header = f"{parent_l2}.001"
+                # Synthetic L3: 001.002.001 (e.g.)
+                syn_l3 = f"{parent_l2}.001"
+                if syn_l3 not in emitted_headers:
+                    output.append(OutputRow(item=syn_l3, description=parent_desc))
+                    emitted_headers.add(syn_l3)
+                    
+                l3_container = syn_l3
                 
-                if l3_header not in emitted_headers:
-                    # Get description from L2 parent if possible
-                    parent_desc = desc_map.get(parent_l2, item.description)
-                    output.append(OutputRow(item=l3_header, description=parent_desc))
-                    emitted_headers.add(l3_header)
+            elif level == 4:
+                # Parent is L3 (first 3 parts)
+                l3_container = ".".join(parts[:3])
+                # Ensure L3 container header exists? 
+                # Usually yes if it was in the input as a Group, but if this L4 task
+                # appeared alone, we might need to synthetically create the L3 header?
+                # Assuming input structure is valid and L3 group was seen.
                 
-                # Create L4 task: 10.03.001.04
-                # Note: We use the original 3rd part (04) as the suffix
-                suffix = parts[2]
-                l4_item = f"{l3_header}.{suffix}"
+            elif level >= 5:
+                # Deep items (Flatten)
+                # Parent is L3
+                base_l3 = ".".join(parts[:3])
+                
+                # Merge suffix
+                # 12.04.01.02.01 -> rest = 0201
+                rest = "".join(parts[3:])
+                l4_item = f"{base_l3}.{rest}"
                 
                 output.append(OutputRow(
                     item=l4_item,
@@ -287,39 +294,23 @@ def transform(items: list[InputItem]) -> list[OutputRow]:
                     quantity=item.quantity,
                     price=item.price,
                 ))
+                continue # Skip sequential renumbering for flattened items (keep specific ID)
+
+            # Generate L4 Item (Renumbering for L2-L4 items)
+            if l3_container:
+                idx = l3_counters.get(l3_container, 1)
+                l3_counters[l3_container] = idx + 1
                 
-        elif level == 4:
-            # L4 (Task or Group) -> Output as is
-            output.append(OutputRow(
-                item=padded,
-                code=item.code,
-                description=item.description,
-                unit=normalise_unit(item.unit),
-                quantity=item.quantity,
-                price=item.price,
-            ))
-            
-        elif level >= 5:
-            # Deep items -> Flatten to Level 4
-            # Keep parts 0, 1, 2 (first 3 digits)
-            # Merge parts 3 to end
-            
-            base = ".".join(parts[:3]) # 12.04.01
-            
-            # Merge remaining parts
-            # e.g. parts[3] = "02", parts[4] = "01" -> "0201"
-            rest = "".join(parts[3:])
-            
-            l4_item = f"{base}.{rest}"
-            
-            output.append(OutputRow(
-                item=l4_item,
-                code=item.code,
-                description=item.description,
-                unit=normalise_unit(item.unit),
-                quantity=item.quantity,
-                price=item.price,
-            ))
+                l4_item = f"{l3_container}.{idx:03d}"
+                
+                output.append(OutputRow(
+                    item=l4_item,
+                    code=item.code,
+                    description=item.description,
+                    unit=normalise_unit(item.unit),
+                    quantity=item.quantity,
+                    price=item.price,
+                ))
 
     return output
 

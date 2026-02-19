@@ -51,28 +51,28 @@ if uploaded_file is not None:
     col4, col5, col6 = st.columns(3)
     
     # Defaults based on 0-based index:
-    # A=0, B=1, C=2, D=3, E=4, F=5, S=18
+    # A=0, B=1, C=2, D=3, E=4, F=5, S=6
     def_item = 1
     def_desc = 2
     def_code = 3
     def_unit = 4
     def_price = 5
-    def_qty = 18
+    def_qty = 6
     def_start = 7
 
     with col1:
-        item_col = st.number_input("Coluna ITEM (Índice)", min_value=0, value=def_item)
+        item_col = st.number_input("Coluna ITEM", min_value=0, value=def_item)
     with col2:
-        desc_col = st.number_input("Coluna DESCRIÇÃO (Índice)", min_value=0, value=def_desc)
+        desc_col = st.number_input("Coluna DESCRIÇÃO", min_value=0, value=def_desc)
     with col3:
-        code_col = st.number_input("Coluna CÓDIGO (Índice)", min_value=0, value=def_code)
+        code_col = st.number_input("Coluna CÓDIGO", min_value=0, value=def_code)
     
     with col4:
-        unit_col = st.number_input("Coluna UNID. (Índice)", min_value=0, value=def_unit)
+        unit_col = st.number_input("Coluna UNID.", min_value=0, value=def_unit)
     with col5:
-        price_col = st.number_input("Coluna PREÇO (Índice)", min_value=0, value=def_price)
+        price_col = st.number_input("Coluna PREÇO", min_value=0, value=def_price)
     with col6:
-        qty_col = st.number_input("Coluna QUANTIDADE (Índice)", min_value=0, value=def_qty)
+        qty_col = st.number_input("Coluna QUANTIDADE", min_value=0, value=def_qty)
         
     start_row = st.number_input("Linha Inicial de Dados", min_value=1, value=def_start)
 
