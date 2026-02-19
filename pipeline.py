@@ -75,6 +75,7 @@ UNIT_MAP = {
 def normalise_unit(raw: str | None) -> str | None:
     if raw is None:
         return None
+    raw = str(raw)
     key = raw.strip().upper()
     return UNIT_MAP.get(key, raw.strip().lower())
 
@@ -141,20 +142,15 @@ def read_input(file_obj, mapping: ColumnMapping = ColumnMapping(), sheet_name: s
             continue
 
         desc = str(desc_cell.value or "").strip()
-        code = code_cell.value
-        unit = unit_cell.value
+        code = str(code_cell.value).strip() if code_cell.value is not None else None
+        unit = str(unit_cell.value).strip() if unit_cell.value is not None else None
         price = price_cell.value
         qty = qty_cell.value
 
         # Determine if this is a data item (has code AND non-empty unit)
-        has_code = code is not None and str(code).strip() != ""
-        has_unit = unit is not None and str(unit).strip() not in ("", None)
+        has_code = code is not None and code != ""
+        has_unit = unit is not None and unit != ""
         is_data = has_code and has_unit
-
-        if code and isinstance(code, str):
-            code = code.strip()
-        if unit and isinstance(unit, str):
-            unit = unit.strip()
             
         # Clean price and qty
         try:
