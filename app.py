@@ -81,7 +81,7 @@ if uploaded_file is not None:
         try:
             # Reset pointer for preview
             uploaded_file.seek(0)
-            df_preview = pd.read_excel(uploaded_file, sheet_name=selected_sheet, header=None, skiprows=start_row-2, nrows=5)
+            df_preview = pd.read_excel(uploaded_file, sheet_name=selected_sheet, header=None, skiprows=start_row-1, nrows=5)
             st.subheader("Pré-visualização (Topo)")
             st.dataframe(df_preview)
         except Exception as e:
