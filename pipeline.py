@@ -84,46 +84,43 @@ def normalise_unit(raw: str | None) -> str | None:
 # Read input
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ColumnMapping:
-    item_col: str = "B"
-    desc_col: str = "C"
-    code_col: str = "D"
-    unit_col: str = "E"
-    price_col: str = "F"
-    qty_col: str = "S"
+    # Default indices (0-based): A=0, B=1, ...
+    item_col: int = 1   # Col B
+    desc_col: int = 2   # Col C
+    code_col: int = 3   # Col D
+    unit_col: int = 4   # Col E
+    price_col: int = 5  # Col F
+    qty_col: int = 18   # Col S
     start_row: int = 7
 
-def _col_idx(col_letter: str) -> int:
-    """Convert column letter to 0-based index."""
-    from openpyxl.utils import column_index_from_string
-    return column_index_from_string(col_letter) - 1
-
-def read_input(file_obj, mapping: ColumnMapping = ColumnMapping()) -> list[InputItem]:
+def read_input(file_obj, mapping: ColumnMapping = ColumnMapping(), sheet_name: str | None = None) -> list[InputItem]:
     """Read the input spreadsheet and return a list of InputItems."""
     wb = openpyxl.load_workbook(file_obj, data_only=True)
-    ws = wb[wb.sheetnames[0]]
-
-    # Determine column indices from mapping (0-based for row array access is tricky 
-    # because row is a tuple of cells, 0-indexed).
-    # row[0] is col A (idx 1). 
-    # Wait, iter_rows yields cells. So row[0] is the cell in the first column requested.
-    # If we iterate over all columns, row[0] is 'A'.
     
-    item_idx = _col_idx(mapping.item_col)
-    desc_idx = _col_idx(mapping.desc_col)
-    code_idx = _col_idx(mapping.code_col)
-    unit_idx = _col_idx(mapping.unit_col)
-    price_idx = _col_idx(mapping.price_col)
-    qty_idx = _col_idx(mapping.qty_col)
+    if sheet_name:
+        if sheet_name not in wb.sheetnames:
+            raise ValueError(f"Sheet '{sheet_name}' not found in workbook.")
+        ws = wb[sheet_name]
+    else:
+        ws = wb[wb.sheetnames[0]]
+
+    # Indices are now directly provided in mapping (0-based)
+    item_idx = mapping.item_col
+    desc_idx = mapping.desc_col
+    code_idx = mapping.code_col
+    unit_idx = mapping.unit_col
+    price_idx = mapping.price_col
+    qty_idx = mapping.qty_col
 
     items: list[InputItem] = []
     
-    # We iterate over all rows, so row[i] corresponds to the i-th column in the sheet (0-based)
-    # openpyxl iter_rows returns a tuple of cells for the row.
+    # We iterate over all rows, but start at mapping.start_row
     for row in ws.iter_rows(min_row=mapping.start_row, max_row=ws.max_row, values_only=False):
-        # row is a tuple of Cell objects or values if values_only=True
-        # Let's ensure we have enough columns
+        # row is a tuple of Cell objects
+        # We need to ensure the row has enough columns for our indices
         max_idx = max(item_idx, desc_idx, code_idx, unit_idx, price_idx, qty_idx)
         if len(row) <= max_idx:
             continue
