@@ -154,12 +154,12 @@ def read_input(file_obj, mapping: ColumnMapping = ColumnMapping(), sheet_name: s
             
         # Clean price and qty
         try:
-             price_val = float(price) if is_data and price else None
+             price_val = round(float(price), 4) if is_data and price else None
         except (ValueError, TypeError):
              price_val = None
              
         try:
-             qty_val = round(float(qty), 2) if is_data and qty else None
+             qty_val = round(float(qty), 4) if is_data and qty else None
         except (ValueError, TypeError):
              qty_val = None
 
@@ -343,6 +343,15 @@ def write_output(rows: list[OutputRow], file_obj_or_path) -> None:
             row.quantity,
             row.price,
         ])
+
+    for row_idx in range(2, len(rows) + 2):
+        cell_qty = ws.cell(row=row_idx, column=5)
+        if isinstance(cell_qty.value, (int, float)):
+            cell_qty.number_format = '0.0000'
+            
+        cell_price = ws.cell(row=row_idx, column=6)
+        if isinstance(cell_price.value, (int, float)):
+            cell_price.number_format = '0.0000'
 
     wb.save(file_obj_or_path)
     wb.close()

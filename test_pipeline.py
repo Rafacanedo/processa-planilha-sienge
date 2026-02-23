@@ -228,6 +228,19 @@ class TestReadInput:
         assert len(items) == 1
         assert items[0].description == "Right Sheet"
 
+    def test_4_decimal_places_rounding(self):
+        """Prices and quantities should be rounded to 4 decimals when read."""
+        buf = _make_workbook([
+            ["1.1", "Task A", "ABC01", "M2", 10.123456, 5.987654],
+        ])
+        mapping = _default_mapping()
+        items = read_input(buf, mapping)
+
+        assert len(items) == 1
+        task = items[0]
+        assert task.price == 10.1235
+        assert task.quantity == 5.9877
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # transform
@@ -379,6 +392,33 @@ class TestRoundTrip:
         assert len(data_rows) == 2
         # Both should have string codes
         assert all(isinstance(r.code, str) for r in data_rows)
+
+    def test_decimal_format_output(self):
+        """Quantities and prices should have 0.0000 number format in output."""
+        rows = [
+            OutputRow(item="001", description="Header"),
+            OutputRow(item="001.001.001.001", code="C1", description="Task", unit="m2", quantity=5.12345, price=10.98765),
+        ]
+        buf = BytesIO()
+        write_output(rows, buf)
+        buf.seek(0)
+
+        wb = openpyxl.load_workbook(buf)
+        ws = wb.active
+        
+        # Row 1 is header, Row 2 is "001" Header, Row 3 is "001.001.001.001" Task
+        # Columns: A=1(ITEM), B=2(CODE), C=3(DESC), D=4(UNIT), E=5(QTY), F=6(PRICE)
+        qty_cell = ws.cell(row=3, column=5)
+        price_cell = ws.cell(row=3, column=6)
+
+        assert qty_cell.number_format == '0.0000'
+        assert price_cell.number_format == '0.0000'
+        
+        # Values should be stored precisely (rounding happens on read, formatting happens on write)
+        assert qty_cell.value == 5.12345
+        assert price_cell.value == 10.98765
+        
+        wb.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
