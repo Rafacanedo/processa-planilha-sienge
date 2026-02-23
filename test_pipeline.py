@@ -176,20 +176,33 @@ class TestReadInput:
         assert isinstance(task.code, str)
         assert isinstance(task.unit, str)
 
-    def test_empty_code_is_not_data(self):
-        """Rows with empty code should not be marked as data items."""
+    def test_empty_code_is_not_data_if_no_price_qty(self):
+        """Rows with empty code, price, and qty should not be marked as data items."""
         # Note: trailing None cells may be omitted by openpyxl, so we put 0
-        # in the last column to ensure rows have enough columns.
+        # or a dummy string in the last column to ensure rows have enough columns.
         buf = _make_workbook([
-            ["1", "Header", None, None, None, 0],
-            ["1.1", "Sub Header", "", "M2", None, 0],
+            ["1", "Header", None, None, None, "", "dummy"],
+            ["1.1", "Sub Header", "", "M2", None, "", "dummy"],
         ])
         mapping = _default_mapping()
         items = read_input(buf, mapping)
 
         assert len(items) == 2
         assert not items[0].is_data
-        assert not items[1].is_data  # empty code → not data
+        assert not items[1].is_data  # empty code, empty price/qty → not data
+
+    def test_empty_code_is_data_if_unit_and_price(self):
+        """Rows without code but with unit and price should be considered data."""
+        buf = _make_workbook([
+            ["1.1", "Task No Code", None, "M2", 100.0, None],
+            ["1.2", "Task No Code Qty", None, "VB", None, 1.0],
+        ])
+        mapping = _default_mapping()
+        items = read_input(buf, mapping)
+
+        assert len(items) == 2
+        assert items[0].is_data
+        assert items[1].is_data
 
     def test_skips_blank_item_rows(self):
         """Rows with None in the ITEM column should be skipped."""
@@ -434,6 +447,8 @@ class TestIntegrationRealFiles:
         self.project = Path(__file__).parent
         self.camil = self.project / "planilha_camil.xlsx"
         self.leonardo = self.project / "planilha_leonardo.xlsx"
+        self.atlas = self.project / "ATLAS COPCO.xlsx"
+        self.valmet = self.project / "VALMET.xlsx"
 
     def test_camil_no_crash(self):
         if not self.camil.exists():
@@ -449,6 +464,24 @@ class TestIntegrationRealFiles:
             pytest.skip("planilha_leonardo.xlsx not present")
         mapping = ColumnMapping()
         items = read_input(str(self.leonardo), mapping)
+        assert len(items) > 0
+        output = transform(items)
+        assert len(output) > 0
+
+    def test_atlas_no_crash(self):
+        if not self.atlas.exists():
+            pytest.skip("ATLAS COPCO.xlsx not present")
+        mapping = ColumnMapping()
+        items = read_input(str(self.atlas), mapping)
+        assert len(items) > 0
+        output = transform(items)
+        assert len(output) > 0
+
+    def test_valmet_no_crash(self):
+        if not self.valmet.exists():
+            pytest.skip("VALMET.xlsx not present")
+        mapping = ColumnMapping()
+        items = read_input(str(self.valmet), mapping)
         assert len(items) > 0
         output = transform(items)
         assert len(output) > 0

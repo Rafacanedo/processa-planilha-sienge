@@ -147,10 +147,12 @@ def read_input(file_obj, mapping: ColumnMapping = ColumnMapping(), sheet_name: s
         price = price_cell.value
         qty = qty_cell.value
 
-        # Determine if this is a data item (has code AND non-empty unit)
+        # Determine if this is a data item (has unit AND (code or price or qty))
         has_code = code is not None and code != ""
         has_unit = unit is not None and unit != ""
-        is_data = has_code and has_unit
+        has_price = price is not None and str(price).strip() != ""
+        has_qty = qty is not None and str(qty).strip() != ""
+        is_data = has_unit and (has_code or has_price or has_qty)
             
         # Clean price and qty
         try:
