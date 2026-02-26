@@ -1,7 +1,7 @@
 """
 Pipeline: Transform planilha_leonardo.xlsx → planilha_final.xlsx
 
-Normalizes item hierarchy to always have 4 levels (XXX.XXX.XXX.XXX).
+Normalizes item hierarchy to always have 4 levels (XX.XXX.XXX.XXX).
 Data items must be at level 4; missing intermediate levels are auto-created.
 """
 
@@ -30,11 +30,21 @@ class InputItem:
 
     @property
     def parts(self) -> list[str]:
-        """Split item into its dotted parts, zero-padded to 3 digits."""
+        """Split item into its dotted parts.
+        
+        First segment is zero-padded to 2 digits, remaining segments to 3 digits.
+        Output format: XX.XXX.XXX.XXX
+        """
         raw = str(self.raw_item)
         # Level-1 items may be plain integers (e.g. 1, 2, 3)
         segments = raw.split(".")
-        return [seg.zfill(3) for seg in segments]
+        result = []
+        for i, seg in enumerate(segments):
+            if i == 0:
+                result.append(seg.zfill(2))
+            else:
+                result.append(seg.zfill(3))
+        return result
 
     @property
     def level(self) -> int:

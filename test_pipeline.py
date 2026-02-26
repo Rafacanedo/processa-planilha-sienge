@@ -104,24 +104,24 @@ class TestNormaliseUnit:
 class TestInputItem:
     def test_single_part(self):
         item = InputItem(raw_item="1", description="Obras", code=None, unit=None, price=None, quantity=None)
-        assert item.parts == ["001"]
+        assert item.parts == ["01"]
         assert item.level == 1
-        assert item.padded_item == "001"
+        assert item.padded_item == "01"
 
     def test_two_parts(self):
         item = InputItem(raw_item="2.03", description="Sub", code=None, unit=None, price=None, quantity=None)
-        assert item.parts == ["002", "003"]
+        assert item.parts == ["02", "003"]
         assert item.level == 2
 
     def test_four_parts_padded(self):
         item = InputItem(raw_item="1.2.3.4", description="T", code="C", unit="M2", price=10.0, quantity=1.0, is_data=True)
-        assert item.padded_item == "001.002.003.004"
+        assert item.padded_item == "01.002.003.004"
         assert item.level == 4
 
     def test_five_parts(self):
         item = InputItem(raw_item="12.04.01.02.01", description="D", code="C", unit="M2", price=1.0, quantity=1.0, is_data=True)
         assert item.level == 5
-        assert item.padded_item == "012.004.001.002.001"
+        assert item.padded_item == "12.004.001.002.001"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -281,7 +281,7 @@ class TestTransform:
         rows = transform(items)
         data_rows = [r for r in rows if r.code is not None]
         assert len(data_rows) == 1
-        assert data_rows[0].item == "001.001.001.001"
+        assert data_rows[0].item == "01.001.001.001"
         assert data_rows[0].unit == "m2"
 
     def test_l2_task_deepened_to_l4(self):
@@ -293,10 +293,10 @@ class TestTransform:
         rows = transform(items)
         # Should have: L1 header, syn L2, syn L3, L4 task
         assert len(rows) == 4
-        assert rows[0].item == "001"           # L1 header
-        assert rows[1].item == "001.001"       # synthetic L2
-        assert rows[2].item == "001.001.001"   # synthetic L3
-        assert rows[3].item == "001.001.001.001"  # actual task
+        assert rows[0].item == "01"           # L1 header
+        assert rows[1].item == "01.001"       # synthetic L2
+        assert rows[2].item == "01.001.001"   # synthetic L3
+        assert rows[3].item == "01.001.001.001"  # actual task
         assert rows[3].code == "C1"
 
     def test_l3_task_deepened_to_l4(self):
@@ -324,7 +324,7 @@ class TestTransform:
         data_rows = [r for r in rows if r.code is not None]
         assert len(data_rows) == 1
         # L5 item 001.001.001.001.001 → flattened to 001.001.001.001001
-        assert data_rows[0].item.startswith("001.001.001.")
+        assert data_rows[0].item.startswith("01.001.001.")
         parts = data_rows[0].item.split(".")
         assert len(parts) == 4  # still 4 levels
 
@@ -341,9 +341,9 @@ class TestTransform:
         rows = transform(items)
         data_rows = [r for r in rows if r.code is not None]
         assert len(data_rows) == 3
-        assert data_rows[0].item == "001.001.001.001"
-        assert data_rows[1].item == "001.001.001.002"
-        assert data_rows[2].item == "001.001.001.003"
+        assert data_rows[0].item == "01.001.001.001"
+        assert data_rows[1].item == "01.001.001.002"
+        assert data_rows[2].item == "01.001.001.003"
 
     def test_numeric_unit_transform_no_crash(self):
         """Regression: numeric unit values flow through transform without error."""
@@ -368,10 +368,10 @@ class TestRoundTrip:
     def test_write_and_reopen(self):
         """write_output produces a valid .xlsx that can be reopened."""
         rows = [
-            OutputRow(item="001", description="Header"),
-            OutputRow(item="001.001", description="Sub"),
-            OutputRow(item="001.001.001", description="Sub-sub"),
-            OutputRow(item="001.001.001.001", code="C1", description="Task", unit="m2", quantity=5.0, price=10.0),
+            OutputRow(item="01", description="Header"),
+            OutputRow(item="01.001", description="Sub"),
+            OutputRow(item="01.001.001", description="Sub-sub"),
+            OutputRow(item="01.001.001.001", code="C1", description="Task", unit="m2", quantity=5.0, price=10.0),
         ]
         buf = BytesIO()
         write_output(rows, buf)
@@ -409,8 +409,8 @@ class TestRoundTrip:
     def test_decimal_format_output(self):
         """Quantities and prices should have 4 decimal places explicitly as text."""
         rows = [
-            OutputRow(item="001", description="Header"),
-            OutputRow(item="001.001.001.001", code="C1", description="Task", unit="m2", quantity=5.12345, price=10.9876),
+            OutputRow(item="01", description="Header"),
+            OutputRow(item="01.001.001.001", code="C1", description="Task", unit="m2", quantity=5.12345, price=10.9876),
         ]
         buf = BytesIO()
         write_output(rows, buf)
