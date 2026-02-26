@@ -407,10 +407,10 @@ class TestRoundTrip:
         assert all(isinstance(r.code, str) for r in data_rows)
 
     def test_decimal_format_output(self):
-        """Quantities and prices should have 0.0000 number format in output."""
+        """Quantities and prices should have 4 decimal places explicitly as text."""
         rows = [
             OutputRow(item="001", description="Header"),
-            OutputRow(item="001.001.001.001", code="C1", description="Task", unit="m2", quantity=5.12345, price=10.98765),
+            OutputRow(item="001.001.001.001", code="C1", description="Task", unit="m2", quantity=5.12345, price=10.9876),
         ]
         buf = BytesIO()
         write_output(rows, buf)
@@ -424,12 +424,9 @@ class TestRoundTrip:
         qty_cell = ws.cell(row=3, column=5)
         price_cell = ws.cell(row=3, column=6)
 
-        assert qty_cell.number_format == '0.0000'
-        assert price_cell.number_format == '0.0000'
-        
-        # Values should be stored precisely (rounding happens on read, formatting happens on write)
-        assert qty_cell.value == 5.12345
-        assert price_cell.value == 10.98765
+        # Values should be explicitly transformed to strings formatted with 4 decimal places and a comma
+        assert qty_cell.value == "5,1235"
+        assert price_cell.value == "10,9876"
         
         wb.close()
 

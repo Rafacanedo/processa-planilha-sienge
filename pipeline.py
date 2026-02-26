@@ -97,6 +97,31 @@ class ColumnMapping:
     qty_col: int = 18   # Col S
     start_row: int = 7
 
+def _parse_float(val) -> float | None:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    val_str = str(val).strip().upper().replace('R$', '').strip()
+    if not val_str or val_str == '-':
+        return None
+    
+    # Handle Brazilian number formats like 1.500,45
+    if '.' in val_str and ',' in val_str:
+        if val_str.rfind(',') > val_str.rfind('.'):
+            # Brazilian: 1.500,00
+            val_str = val_str.replace('.', '').replace(',', '.')
+        else:
+            # US: 1,500.00
+            val_str = val_str.replace(',', '')
+    elif ',' in val_str:
+        val_str = val_str.replace(',', '.')
+        
+    try:
+        return float(val_str)
+    except ValueError:
+        return None
+
 def read_input(file_obj, mapping: ColumnMapping = ColumnMapping(), sheet_name: str | None = None) -> list[InputItem]:
     """Read the input spreadsheet and return a list of InputItems."""
     wb = openpyxl.load_workbook(file_obj, data_only=True)
@@ -153,17 +178,21 @@ def read_input(file_obj, mapping: ColumnMapping = ColumnMapping(), sheet_name: s
         has_price = price is not None and str(price).strip() != ""
         has_qty = qty is not None and str(qty).strip() != ""
         is_data = has_unit and (has_code or has_price or has_qty)
+
             
         # Clean price and qty
-        try:
-             price_val = round(float(price), 4) if is_data and price else None
-        except (ValueError, TypeError):
-             price_val = None
-             
-        try:
-             qty_val = round(float(qty), 4) if is_data and qty else None
-        except (ValueError, TypeError):
-             qty_val = None
+        price_val = None
+        if is_data and price is not None:
+             parsed = _parse_float(price)
+             if parsed is not None:
+                 price_val = round(parsed, 4)
+                 
+        qty_val = None
+        if is_data and qty is not None:
+             parsed = _parse_float(qty)
+             if parsed is not None:
+                 qty_val = round(parsed, 4)
+
 
         items.append(InputItem(
             raw_item=item_str,
@@ -337,23 +366,24 @@ def write_output(rows: list[OutputRow], file_obj_or_path) -> None:
     ws.append(HEADER_ROW)
 
     for row in rows:
+        qty_out = row.quantity
+        if isinstance(qty_out, (int, float)):
+            qty_out = f"{qty_out:.4f}".replace('.', ',')
+            
+        price_out = row.price
+        if isinstance(price_out, (int, float)):
+            price_out = f"{price_out:.4f}".replace('.', ',')
+
         ws.append([
             row.item,
             row.code,
             row.description,
             row.unit,
-            row.quantity,
-            row.price,
+            qty_out,
+            price_out,
         ])
 
-    for row_idx in range(2, len(rows) + 2):
-        cell_qty = ws.cell(row=row_idx, column=5)
-        if isinstance(cell_qty.value, (int, float)):
-            cell_qty.number_format = '0.0000'
-            
-        cell_price = ws.cell(row=row_idx, column=6)
-        if isinstance(cell_price.value, (int, float)):
-            cell_price.number_format = '0.0000'
+
 
     wb.save(file_obj_or_path)
     wb.close()
