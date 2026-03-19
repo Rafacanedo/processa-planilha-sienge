@@ -19,6 +19,7 @@ from pipeline import (
     normalise_unit,
     read_input,
     transform,
+    filter_zero_quantity,
     write_output,
 )
 
@@ -358,6 +359,64 @@ class TestTransform:
         data_rows = [r for r in rows if r.code is not None]
         assert len(data_rows) == 1
         assert data_rows[0].unit == "2"  # normalise_unit passes through unknown units
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# filter_zero_quantity
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFilterZeroQuantity:
+    def test_removes_l4_with_zero_qty(self):
+        """A level-4 row with quantity=0 should be removed."""
+        rows = [
+            OutputRow(item="01.001.001.001", description="Zero", quantity=0.0, code="C1"),
+        ]
+        filtered = filter_zero_quantity(rows)
+        assert len(filtered) == 0
+
+    def test_keeps_l4_with_none_qty(self):
+        """A level-4 row with quantity=None (blank) should be kept."""
+        rows = [
+            OutputRow(item="01.001.001.001", description="None", quantity=None, code="C1"),
+        ]
+        filtered = filter_zero_quantity(rows)
+        assert len(filtered) == 1
+        assert filtered[0].description == "None"
+
+    def test_keeps_l4_with_positive_qty(self):
+        """A level-4 row with quantity > 0 should be kept."""
+        rows = [
+            OutputRow(item="01.001.001.001", description="Pos", quantity=5.0, code="C1"),
+        ]
+        filtered = filter_zero_quantity(rows)
+        assert len(filtered) == 1
+        assert filtered[0].quantity == 5.0
+
+    def test_keeps_headers(self):
+        """Level 1, 2, and 3 rows should be kept even if they have no quantity (None)."""
+        rows = [
+            OutputRow(item="01", description="L1"),
+            OutputRow(item="01.001", description="L2"),
+            OutputRow(item="01.001.001", description="L3"),
+        ]
+        filtered = filter_zero_quantity(rows)
+        assert len(filtered) == 3
+
+    def test_mixed_rows(self):
+        """Mixed scenario with headers, valid tasks, and a zero-qty task."""
+        rows = [
+            OutputRow(item="01", description="Header"),
+            OutputRow(item="01.001.001.001", description="Keep Me", quantity=10.0, code="C1"),
+            OutputRow(item="01.001.001.002", description="Remove Me", quantity=0.0, code="C2"),
+            OutputRow(item="01.001.001.003", description="Keep Me Too", quantity=None, code="C3"),
+        ]
+        filtered = filter_zero_quantity(rows)
+        assert len(filtered) == 3
+        # Check that C2 was the one removed
+        codes = [r.code for r in filtered if r.code]
+        assert "C1" in codes
+        assert "C3" in codes
+        assert "C2" not in codes
 
 
 # ═══════════════════════════════════════════════════════════════════════════

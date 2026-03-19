@@ -352,6 +352,25 @@ def transform(items: list[InputItem]) -> list[OutputRow]:
     return output
 
 
+def filter_zero_quantity(rows: list[OutputRow]) -> list[OutputRow]:
+    """Remove level-4 data rows whose quantity is exactly 0.
+
+    Keeps rows where:
+    - level != 4 (headers at L1/L2/L3)
+    - quantity is None (no quantity specified)
+    - quantity > 0 or quantity < 0
+    Only removes rows where quantity == 0 (the number, not None/""/NaN).
+    """
+    result = []
+    for row in rows:
+        # Determine level by counting dots: "01" (L1, 0 dots), "01.001.001.001" (L4, 3 dots)
+        level = row.item.count(".") + 1
+        if level == 4 and row.quantity is not None and row.quantity == 0:
+            continue
+        result.append(row)
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Write output
 # ---------------------------------------------------------------------------
@@ -421,6 +440,7 @@ def main():
 
     print("Transforming...")
     output_rows = transform(items)
+    output_rows = filter_zero_quantity(output_rows)
     print(f"  {len(output_rows)} output rows")
 
     data_output = [r for r in output_rows if r.code is not None]

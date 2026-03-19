@@ -10,7 +10,6 @@ sys.path.append(".")
 import pipeline
 
 
-
 st.set_page_config(page_title="Processa planilha para o Sienge", page_icon="📊", layout="wide")
 
 st.title("📊 Processa planilha para o Sienge")
@@ -58,7 +57,7 @@ if uploaded_file is not None:
     def_unit = 4
     def_price = 5
     def_qty = 6
-    def_start = 7
+    def_start = 1
 
     with col1:
         item_col = st.number_input("Coluna ITEM", min_value=0, value=def_item)
@@ -104,12 +103,12 @@ if uploaded_file is not None:
                     start_row=int(start_row)
                 )
 
-
                 # READ
                 items = pipeline.read_input(uploaded_file, mapping, sheet_name=selected_sheet)
                 
                 # TRANSFORM
                 output_rows = pipeline.transform(items)
+                output_rows = pipeline.filter_zero_quantity(output_rows)
                 
                 # WRITE TO BUFFER
                 output_buffer = BytesIO()
